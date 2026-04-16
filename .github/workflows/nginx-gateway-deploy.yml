@@ -1,0 +1,76 @@
+name: nginx-gateway-deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docker-compose.yml"
+      - "nginx/**"
+      - "scripts/**"
+      - ".github/workflows/nginx-gateway-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nginx-gateway-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package gateway files
+        run: |
+          set -eu
+          mkdir -p .deploy
+          tar -czf .deploy/nginx-gateway.tgz \
+            docker-compose.yml \
+            nginx \
+            scripts
+
+      - name: Upload package to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: ".deploy/nginx-gateway.tgz"
+          target: "/tmp"
+          strip_components: 1
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script_stop: true
+          envs: LETSENCRYPT_EMAIL
+          script: |
+            set -eu
+
+            mkdir -p "/opt/projects/nginx-gateway"
+            tar -xzf /tmp/nginx-gateway.tgz -C "/opt/projects/nginx-gateway"
+            rm -f /tmp/nginx-gateway.tgz
+
+            mkdir -p \
+              "/opt/projects/nginx-gateway/certbot/www" \
+              "/opt/projects/nginx-gateway/certbot/conf" \
+              "/opt/projects/rwat/app/upload"
+
+            docker network inspect rwat-edge >/dev/null 2>&1 || docker network create rwat-edge
+
+            cd "/opt/projects/nginx-gateway"
+            chmod +x ./scripts/*.sh
+            LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}" ./scripts/bootstrap.sh
+            docker compose -f docker-compose.yml ps
