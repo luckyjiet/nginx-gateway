@@ -4,6 +4,7 @@
 - `go-server` 反向代理（`api.md-zgxt.com`）
 - `go-admin-ui` 反向代理（`admin.md-zgxt.com`）
 - `dex-ui` 反向代理（`swap.md-zgxt.com`）
+- `mid-route` 反向代理（`mid-route.site` -> `host:8080`）
 - `certbot` 证书签发与续签
 - `/upload/` 静态文件直出（映射 go-server 上传目录）
 
@@ -22,6 +23,8 @@
 
 - `go-server`、`go-admin-ui`、`dex-ui` 容器已运行，并在同一个 Docker 网络：`rwat-edge`
 - 上传目录固定为：`/opt/projects/rwat/app/upload`（容器内映射为 `/var/www/rwat/upload`）
+- `mid-route.site` 目标服务监听宿主机 `8080` 端口
+- `bootstrap/request-cert/renew-cert` 脚本会自动检查并创建 `rwat-edge` 网络
 
 ## 服务器固定目录
 
@@ -66,6 +69,7 @@ LETSENCRYPT_EMAIL=ops@example.com ./scripts/request-cert.sh
 
 - 每个主域名一套证书目录：`certbot/conf/live/<cert_name>/`
 - 当前示例：`certbot/conf/live/md-zgxt.com/fullchain.pem`
+- 新增示例：`certbot/conf/live/mid-route.site/fullchain.pem`
 
 ## 多主域名扩展
 

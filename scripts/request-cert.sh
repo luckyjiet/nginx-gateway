@@ -6,6 +6,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$SCRIPT_DIR/common.sh"
 
 mkdir -p "$ROOT_DIR/certbot/www" "$ROOT_DIR/certbot/conf"
+ensure_edge_network
 
 "$SCRIPT_DIR/render-nginx-conf.sh"
 (
