@@ -63,10 +63,19 @@ jobs:
             mkdir -p "$DEPLOY_PATH"
             rm -rf "$DEPLOY_PATH/environments" "$DEPLOY_PATH/nginx" "$DEPLOY_PATH/scripts"
             rm -f "$DEPLOY_PATH/docker-compose.yml" "$DEPLOY_PATH/README.md"
+
+            echo "[nginx-gateway] package contents:"
+            tar -tzf /tmp/nginx-gateway.tgz | sed -n '1,80p'
             tar -xzf /tmp/nginx-gateway.tgz -C "$DEPLOY_PATH"
+            test -f "$DEPLOY_PATH/docker-compose.yml"
+            test -x "$DEPLOY_PATH/scripts/bootstrap.sh" || chmod +x "$DEPLOY_PATH/scripts/bootstrap.sh"
             rm -f /tmp/nginx-gateway.tgz
 
             cd "$DEPLOY_PATH"
+            echo "[nginx-gateway] deploy path: $DEPLOY_PATH"
+            echo "[nginx-gateway] docker binary: $(command -v docker || true)"
+            docker compose version
+            ls -la "$DEPLOY_PATH"
             chmod +x ./scripts/*.sh ./scripts/tests/*.sh
             APP_ENV="$APP_ENV" LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}" ./scripts/bootstrap.sh
             APP_ENV="$APP_ENV" ./scripts/compose.sh ps
