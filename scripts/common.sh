@@ -106,17 +106,12 @@ ensure_runtime_dirs() {
 }
 
 docker_compose() {
+  compose_file="$ROOT_DIR/docker-compose.yml"
   if [ -f "$ENV_DIR/docker-compose.yml" ]; then
-    (
-      cd "$ROOT_DIR"
-      docker compose -f docker-compose.yml -f "$ENV_DIR/docker-compose.yml" "$@"
-    )
+    docker compose --project-directory "$ROOT_DIR" -f "$compose_file" -f "$ENV_DIR/docker-compose.yml" "$@"
     return 0
   fi
-  (
-    cd "$ROOT_DIR"
-    docker compose -f docker-compose.yml "$@"
-  )
+  docker compose --project-directory "$ROOT_DIR" -f "$compose_file" "$@"
 }
 
 export SCRIPT_DIR ROOT_DIR APP_ENV ENV_DIR ENV_FILE

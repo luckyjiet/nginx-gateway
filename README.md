@@ -93,6 +93,7 @@ APP_ENV=prod LETSENCRYPT_EMAIL=ops@example.com ./scripts/request-cert.sh
 
 ```bash
 sh scripts/tests/source-layout-test.sh
+sh scripts/tests/compose-command-test.sh
 sh scripts/tests/render-environments-test.sh
 sh scripts/tests/compose-environments-test.sh
 sh -n scripts/*.sh scripts/tests/*.sh
