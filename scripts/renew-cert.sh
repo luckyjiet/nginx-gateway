@@ -5,14 +5,11 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 # shellcheck disable=SC1091
 . "$SCRIPT_DIR/common.sh"
 
-mkdir -p "$ROOT_DIR/certbot/www" "$ROOT_DIR/certbot/conf"
+ensure_runtime_dirs
 ensure_edge_network
 
 "$SCRIPT_DIR/render-nginx-conf.sh"
-(
-  cd "$ROOT_DIR"
-  docker compose -f docker-compose.yml up -d nginx
-)
+docker_compose up -d nginx
 
 for cert_name in $CERT_GROUP_NAMES; do
   [ -n "$cert_name" ] || continue
@@ -56,9 +53,6 @@ for cert_name in $CERT_GROUP_NAMES; do
 done
 
 "$SCRIPT_DIR/render-nginx-conf.sh"
-(
-  cd "$ROOT_DIR"
-  docker compose -f docker-compose.yml restart nginx
-)
+docker_compose restart nginx
 
 echo "[nginx-gateway] certificate renew complete"

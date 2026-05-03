@@ -1,7 +1,7 @@
 services:
   nginx:
     image: nginx:1.27-alpine
-    container_name: gateway-nginx
+    container_name: ${GATEWAY_CONTAINER_NAME:-gateway-nginx}
     restart: unless-stopped
     ports:
       - "80:80"
@@ -10,7 +10,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - /opt/projects/rwat/app/upload:/var/www/rwat/upload:ro
+      - ${OPENCOIN_WEB_ROOT:-/var/www/opencoin}:/var/www/opencoin:ro
       - ./certbot/www:/var/www/certbot:ro
       - ./certbot/conf:/etc/letsencrypt:ro
     networks:
@@ -18,5 +18,5 @@ services:
 
 networks:
   edge:
-    name: rwat-edge
+    name: ${EDGE_NETWORK_NAME:-gateway_test}
     external: true

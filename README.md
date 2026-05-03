@@ -1,85 +1,101 @@
 # nginx-gateway
 
-独立网关项目，承接以下逻辑：
-- `go-server` 反向代理（`api.md-zgxt.com`）
-- `go-admin-ui` 反向代理（`admin.md-zgxt.com`）
-- `dex-ui` 反向代理（`swap.md-zgxt.com`）
-- `mid-route` 反向代理（`mid-route.site` -> `host:8080`）
-- `certbot` 证书签发与续签
-- `/upload/` 静态文件直出（映射 go-server 上传目录）
+OpenCoin frontend 的独立 Nginx + Certbot 网关。
+
+当前站点：
+
+- 域名：`uniamm.com`
+- 静态文件宿主机根目录：`/var/www/opencoin`
+- test 静态文件目录：`/var/www/opencoin/test`
+- prod 静态文件目录：`/var/www/opencoin/prod`
+- 容器内静态目录：`/var/www/opencoin`
+- test Docker network：`gateway_test`
+- prod Docker network：`gateway_prod`
+- 证书目录：`certbot/conf/live/uniamm.com/`
+
+`opencoin-frontend` 的 workflow 会把 `dist/test/` 或 `dist/prod/` rsync 到对应 GitHub Environment 的 `DEPLOY_PATH`。网关挂载上层目录 `/var/www/opencoin`，Nginx 按 `APP_ENV` 使用 `/var/www/opencoin/test` 或 `/var/www/opencoin/prod` 作为 root。
 
 ## 目录结构
 
-- `docker-compose.yml`：网关运行编排
-- `nginx/templates/http-only.conf`：无证书时配置
-- `nginx/templates/https.conf`：有证书时配置
-- `nginx/default.conf`：当前生效配置（由脚本切换）
-- `scripts/bootstrap.sh`：启动并自动按证书状态切换
-- `scripts/request-cert.sh`：按主域名证书组申请/刷新证书并切换 HTTPS
-- `scripts/renew-cert.sh`：按主域名证书组续签证书并重启网关
-- `scripts/common.sh`：固定证书组清单（每个主域名一张证书，覆盖其子域名）
+- `docker-compose.yml`：只运行 `nginx`，挂载 OpenCoin 静态目录和 Certbot 目录。
+- `environments/test/gateway.env`：test 环境配置。
+- `environments/prod/gateway.env`：prod 环境配置。
+- `environments/<env>/routes/http-only/opencoin.conf`：未签发证书时的 HTTP 配置。
+- `environments/<env>/routes/https/opencoin.conf`：证书存在后的 HTTPS 配置。
+- `nginx/templates/preamble.conf`：Nginx 基础配置片段。
+- `nginx/default.conf`：当前生效配置，由脚本生成。
+- `scripts/render-nginx-conf.sh`：按证书状态渲染 HTTP 或 HTTPS。
+- `scripts/request-cert.sh`：申请证书。
+- `scripts/renew-cert.sh`：续签证书。
+- `scripts/compose.sh`：按 `APP_ENV` 执行 Docker Compose。
 
-## 前置条件
+## GitHub Environment
 
-- `go-server`、`go-admin-ui`、`dex-ui` 容器已运行，并在同一个 Docker 网络：`rwat-edge`
-- 上传目录固定为：`/opt/projects/rwat/app/upload`（容器内映射为 `/var/www/rwat/upload`）
-- `mid-route.site` 目标服务监听宿主机 `8080` 端口
-- `bootstrap/request-cert/renew-cert` 脚本会自动检查并创建 `rwat-edge` 网络
+需要配置 GitHub Environments：`test` 和 `prod`。
 
-## 服务器固定目录
+`opencoin-frontend` variables：
 
-- 网关部署目录：`/opt/projects/nginx-gateway`
-- 业务栈上传目录：`/opt/projects/rwat/app/upload`
+- `DEPLOY_HOST`
+- `DEPLOY_PORT`
+- `DEPLOY_USER`
+- `DEPLOY_PATH`
+  - test：`/var/www/opencoin/test`
+  - prod：`/var/www/opencoin/prod`
 
-## GitHub Actions Secrets
+`opencoin-frontend` secrets：
 
-- 必填：`SERVER_HOST`
-- 必填：`SERVER_PORT`
-- 必填：`SERVER_USER`
-- 必填：`SERVER_SSH_KEY`
-- 可选：`LETSENCRYPT_EMAIL`
+- `SSH_PRIVATE_KEY`
+
+`nginx-gateway` variables：
+
+- `DEPLOY_HOST`
+- `DEPLOY_PORT`
+- `DEPLOY_USER`
+- `DEPLOY_PATH`：nginx-gateway 部署目录，例如 `/opt/projects/nginx-gateway`
+
+`nginx-gateway` secrets：
+
+- `SSH_PRIVATE_KEY`
+- `LETSENCRYPT_EMAIL`
+
+兼容旧 secret 名：`SERVER_HOST`、`SERVER_PORT`、`SERVER_USER`、`SERVER_SSH_KEY`。
+
+## 部署触发
+
+- push `test` 分支：自动使用 GitHub Environment `test`
+- 手动触发 prod workflow：仅允许 `main` 分支，使用 GitHub Environment `prod`
+
+`opencoin-frontend`：
+
+- `test` 分支构建 `dist/test/`，部署到 `/var/www/opencoin/test`
+- prod 手动触发时构建 `dist/prod/`，部署到 `/var/www/opencoin/prod`
+
+`nginx-gateway`：
+
+- `test` 分支使用 `APP_ENV=test`
+- prod 手动触发时使用 `APP_ENV=prod`
 
 ## 使用
 
-1. 首次启动（HTTP 或 HTTPS 自动切换）
-
 ```bash
-./scripts/bootstrap.sh
+APP_ENV=test ./scripts/bootstrap.sh
+APP_ENV=prod ./scripts/bootstrap.sh
 ```
 
-2. 手动申请证书（可选传邮箱）
+申请证书：
 
 ```bash
-LETSENCRYPT_EMAIL=ops@example.com ./scripts/request-cert.sh
+APP_ENV=test LETSENCRYPT_EMAIL=ops@example.com ./scripts/request-cert.sh
+APP_ENV=prod LETSENCRYPT_EMAIL=ops@example.com ./scripts/request-cert.sh
 ```
 
-不传邮箱也可以（脚本会走 `--register-unsafely-without-email`）：
+## 验证
 
 ```bash
-./scripts/request-cert.sh
-```
-
-3. 手动续签证书
-
-```bash
-./scripts/renew-cert.sh
-```
-
-## 证书目录
-
-- 每个主域名一套证书目录：`certbot/conf/live/<cert_name>/`
-- 当前示例：`certbot/conf/live/md-zgxt.com/fullchain.pem`
-- 新增示例：`certbot/conf/live/mid-route.site/fullchain.pem`
-
-## 多主域名扩展
-
-- 在 `scripts/common.sh` 的 `CERT_GROUP_NAMES` 追加第二个主域名
-- 在 `domains_for_group()` 中补充该主域名对应的子域名列表
-
-## 常见排查
-
-```bash
-cd nginx-gateway
-docker compose -f docker-compose.yml config
-docker compose -f docker-compose.yml logs -f nginx
+sh scripts/tests/source-layout-test.sh
+sh scripts/tests/render-environments-test.sh
+sh scripts/tests/compose-environments-test.sh
+sh -n scripts/*.sh scripts/tests/*.sh
+APP_ENV=test ./scripts/compose.sh config
+APP_ENV=prod ./scripts/compose.sh config
 ```

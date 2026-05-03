@@ -5,14 +5,11 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 # shellcheck disable=SC1091
 . "$SCRIPT_DIR/common.sh"
 
-mkdir -p "$ROOT_DIR/certbot/www" "$ROOT_DIR/certbot/conf"
+ensure_runtime_dirs
 ensure_edge_network
 
 "$SCRIPT_DIR/render-nginx-conf.sh"
-(
-  cd "$ROOT_DIR"
-  docker compose -f docker-compose.yml up -d nginx
-)
+docker_compose up -d nginx
 
 if ! all_group_certs_ready; then
   if [ -n "$LETSENCRYPT_EMAIL" ]; then

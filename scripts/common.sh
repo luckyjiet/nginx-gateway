@@ -4,17 +4,47 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 
-API_DOMAIN="api.md-zgxt.com"
-ADMIN_DOMAIN="admin.md-zgxt.com"
-SWAP_DOMAIN="swap.md-zgxt.com"
-MID_ROUTE_DOMAIN="mid-route.site"
-EDGE_NETWORK_NAME="${EDGE_NETWORK_NAME:-rwat-edge}"
+APP_ENV="${APP_ENV:-test}"
+ENV_DIR="${ENV_DIR:-$ROOT_DIR/environments/$APP_ENV}"
+ENV_FILE="$ENV_DIR/gateway.env"
 
-# 按主域名维度组织证书：一张证书可覆盖多个子域名（SAN）。
-# 需要第二套主域名时，在 CERT_GROUP_NAMES 追加，并在
-# domains_for_group() 增加对应分支。
-CERT_GROUP_NAMES="md-zgxt.com mid-route.site"
+if [ ! -f "$ENV_FILE" ]; then
+  echo "[nginx-gateway] missing environment file: $ENV_FILE" >&2
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+. "$ENV_FILE"
+set +a
+
+: "${APP_ENV:=test}"
+: "${GATEWAY_CONTAINER_NAME:=gateway-nginx}"
+: "${EDGE_NETWORK_NAME:=gateway_test}"
+: "${OPENCOIN_WEB_ROOT:=/var/www/opencoin}"
+: "${OPENCOIN_WEB_ENV:=$APP_ENV}"
+: "${CERT_GROUP_KEYS:=OPENCOIN_CERT}"
 : "${LETSENCRYPT_EMAIL:=}"
+
+cert_name_for_key() {
+  cert_key=$1
+  eval "printf '%s' \"\${${cert_key}_NAME:-}\""
+}
+
+cert_domains_for_key() {
+  cert_key=$1
+  eval "printf '%s' \"\${${cert_key}_DOMAINS:-}\""
+}
+
+build_cert_group_names() {
+  for cert_key in $CERT_GROUP_KEYS; do
+    cert_name=$(cert_name_for_key "$cert_key")
+    [ -n "$cert_name" ] || continue
+    printf '%s\n' "$cert_name"
+  done
+}
+
+CERT_GROUP_NAMES=$(build_cert_group_names | tr '\n' ' ')
 
 cert_dir_for_group() {
   cert_name=$1
@@ -23,17 +53,15 @@ cert_dir_for_group() {
 
 domains_for_group() {
   cert_name=$1
-  case "$cert_name" in
-    md-zgxt.com)
-      printf '%s\n' "$API_DOMAIN $ADMIN_DOMAIN $SWAP_DOMAIN"
-      ;;
-    mid-route.site)
-      printf '%s\n' "$MID_ROUTE_DOMAIN"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  for cert_key in $CERT_GROUP_KEYS; do
+    candidate_name=$(cert_name_for_key "$cert_key")
+    [ "$candidate_name" = "$cert_name" ] || continue
+    cert_domains=$(cert_domains_for_key "$cert_key")
+    [ -n "$cert_domains" ] || return 1
+    printf '%s\n' "$cert_domains"
+    return 0
+  done
+  return 1
 }
 
 group_cert_ready() {
@@ -73,5 +101,25 @@ ensure_edge_network() {
   docker network create "$EDGE_NETWORK_NAME" >/dev/null
 }
 
-export SCRIPT_DIR ROOT_DIR API_DOMAIN ADMIN_DOMAIN SWAP_DOMAIN MID_ROUTE_DOMAIN CERT_GROUP_NAMES
-export LETSENCRYPT_EMAIL EDGE_NETWORK_NAME
+ensure_runtime_dirs() {
+  mkdir -p "$ROOT_DIR/certbot/www" "$ROOT_DIR/certbot/conf" "$OPENCOIN_WEB_ROOT"
+}
+
+docker_compose() {
+  if [ -f "$ENV_DIR/docker-compose.yml" ]; then
+    (
+      cd "$ROOT_DIR"
+      docker compose -f docker-compose.yml -f "$ENV_DIR/docker-compose.yml" "$@"
+    )
+    return 0
+  fi
+  (
+    cd "$ROOT_DIR"
+    docker compose -f docker-compose.yml "$@"
+  )
+}
+
+export SCRIPT_DIR ROOT_DIR APP_ENV ENV_DIR ENV_FILE
+export GATEWAY_CONTAINER_NAME EDGE_NETWORK_NAME OPENCOIN_WEB_ROOT OPENCOIN_WEB_ENV
+export OPENCOIN_DOMAIN OPENCOIN_CERT_NAME CERT_GROUP_KEYS CERT_GROUP_NAMES
+export LETSENCRYPT_EMAIL
