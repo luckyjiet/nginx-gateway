@@ -36,10 +36,10 @@ jobs:
           DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
           LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         with:
-          host: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST || secrets.SERVER_HOST }}
-          port: ${{ vars.DEPLOY_PORT || secrets.DEPLOY_PORT || secrets.SERVER_PORT || '22' }}
-          username: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER || secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.SERVER_SSH_KEY }}
+          host: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
+          port: ${{ vars.DEPLOY_PORT || secrets.DEPLOY_PORT || '22' }}
+          username: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
           envs: APP_ENV,DEPLOY_PATH,LETSENCRYPT_EMAIL
           script: |

@@ -58,7 +58,7 @@ OpenCoin frontend 的独立 Nginx + Certbot 网关。
 - `SSH_PRIVATE_KEY`
 - `LETSENCRYPT_EMAIL`
 
-`DEPLOY_HOST`、`DEPLOY_PORT`、`DEPLOY_USER` 可以配置在 Variables 或 Secrets；workflow 会优先读 Variables，再读同名 Secrets。兼容旧 secret 名：`SERVER_HOST`、`SERVER_PORT`、`SERVER_USER`、`SERVER_SSH_KEY`。
+`DEPLOY_HOST`、`DEPLOY_PORT`、`DEPLOY_USER` 可以配置在 Variables 或 Secrets；workflow 会优先读 Variables，再读同名 Secrets。`SSH_PRIVATE_KEY` 和 `LETSENCRYPT_EMAIL` 必须配置在 Secrets。
 
 ## 部署触发
 

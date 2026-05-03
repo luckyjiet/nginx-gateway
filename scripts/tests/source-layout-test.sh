@@ -19,6 +19,11 @@ if find "$ROOT_DIR/environments" -path '*/routes/*' -type f -name '[0-9]*.conf' 
   exit 1
 fi
 
+if grep -R -E 'SERVER_(HOST|PORT|USER|SSH_KEY)' "$ROOT_DIR/.github" "$ROOT_DIR/README.md" >/dev/null 2>&1; then
+  echo "deploy workflows should use DEPLOY_* and SSH_PRIVATE_KEY only, not legacy SERVER_* names" >&2
+  exit 1
+fi
+
 for file in \
   "$ROOT_DIR/environments/test/routes/http-only/opencoin.conf" \
   "$ROOT_DIR/environments/test/routes/https/opencoin.conf" \
