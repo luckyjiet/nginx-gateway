@@ -11,6 +11,7 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ${OPENCOIN_WEB_ROOT:-/var/www/opencoin}:/var/www/opencoin:ro
+      - ${WITTGENS_WEB_ROOT:-/var/www/wittgens}:/var/www/wittgens:ro
       - ./certbot/www:/var/www/certbot:ro
       - ./certbot/conf:/etc/letsencrypt:ro
     networks:

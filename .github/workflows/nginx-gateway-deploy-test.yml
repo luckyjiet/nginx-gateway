@@ -44,9 +44,9 @@ jobs:
       - name: Upload package to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
-          port: ${{ vars.DEPLOY_PORT || secrets.DEPLOY_PORT || '22' }}
-          username: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+          host: ${{ vars.DEPLOY_HOST }}
+          port: ${{ vars.DEPLOY_PORT || '22' }}
+          username: ${{ vars.DEPLOY_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: ".deploy/nginx-gateway.tgz"
           target: "/tmp"
@@ -59,9 +59,9 @@ jobs:
           DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
           LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
         with:
-          host: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
-          port: ${{ vars.DEPLOY_PORT || secrets.DEPLOY_PORT || '22' }}
-          username: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+          host: ${{ vars.DEPLOY_HOST }}
+          port: ${{ vars.DEPLOY_PORT || '22' }}
+          username: ${{ vars.DEPLOY_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
           envs: APP_ENV,DEPLOY_PATH,LETSENCRYPT_EMAIL

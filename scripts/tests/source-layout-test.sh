@@ -44,7 +44,9 @@ done
 
 for file in \
   "$ROOT_DIR/environments/test/routes/http-only/opencoin.conf" \
+  "$ROOT_DIR/environments/test/routes/http-only/rwat.conf" \
   "$ROOT_DIR/environments/test/routes/https/opencoin.conf" \
+  "$ROOT_DIR/environments/test/routes/https/rwat.conf" \
   "$ROOT_DIR/environments/prod/routes/http-only/opencoin.conf" \
   "$ROOT_DIR/environments/prod/routes/https/opencoin.conf"
 do

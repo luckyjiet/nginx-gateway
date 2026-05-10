@@ -23,10 +23,13 @@ assert_not_contains() {
 }
 
 test_config=$(APP_ENV=test "$ROOT_DIR/scripts/compose.sh" config)
-assert_contains "$test_config" "name: gateway_test"
+assert_contains "$test_config" "name: rwat-edge"
 assert_contains "$test_config" "source: /var/www/opencoin"
 assert_contains "$test_config" "target: /var/www/opencoin"
+assert_contains "$test_config" "source: /var/www/wittgens"
+assert_contains "$test_config" "target: /var/www/wittgens"
 assert_not_contains "$test_config" "source: /var/www/opencoin/test"
+assert_not_contains "$test_config" "source: /var/www/wittgens/test"
 
 prod_config=$(APP_ENV=prod "$ROOT_DIR/scripts/compose.sh" config)
 assert_contains "$prod_config" "name: gateway_prod"
