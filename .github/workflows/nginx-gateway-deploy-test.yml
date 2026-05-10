@@ -1,5 +1,6 @@
 name: opencoin-gateway-deploy-test
 
+# Pushes touching this workflow intentionally trigger the test gateway deploy.
 on:
   push:
     branches:
