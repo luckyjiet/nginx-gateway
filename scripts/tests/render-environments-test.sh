@@ -6,10 +6,10 @@ ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 DEFAULT_CONF="$ROOT_DIR/nginx/default.conf"
 BACKUP_CONF=$(mktemp)
 CERT_ROOT="$ROOT_DIR/certbot/conf/live"
-TEST_CERT_NAMES="uniamm.com wittgens.cloud"
 CREATED_CERT_DIRS=""
 CREATED_FULLCHAINS=""
 CREATED_PRIVKEYS=""
+CREATED_TMP_FILES=""
 
 cleanup() {
   if [ -f "$BACKUP_CONF" ]; then
@@ -24,6 +24,9 @@ cleanup() {
   done
   for dir in $CREATED_CERT_DIRS; do
     rmdir "$dir" 2>/dev/null || true
+  done
+  for file in $CREATED_TMP_FILES; do
+    rm -f "$file"
   done
   rmdir "$CERT_ROOT" 2>/dev/null || true
 }
@@ -49,21 +52,61 @@ assert_not_contains() {
 cp "$DEFAULT_CONF" "$BACKUP_CONF"
 trap cleanup EXIT
 
-for cert_name in $TEST_CERT_NAMES; do
+create_test_cert() {
+  cert_name=$1
+  cert_domains=$2
   cert_dir="$CERT_ROOT/$cert_name"
   if [ ! -d "$cert_dir" ]; then
     mkdir -p "$cert_dir"
     CREATED_CERT_DIRS="$cert_dir $CREATED_CERT_DIRS"
   fi
-  if [ ! -f "$cert_dir/fullchain.pem" ]; then
-    : > "$cert_dir/fullchain.pem"
+
+  if [ ! -f "$cert_dir/fullchain.pem" ] || [ ! -f "$cert_dir/privkey.pem" ]; then
+    if [ -f "$cert_dir/fullchain.pem" ]; then
+      echo "test cert is partially present, refusing to overwrite: $cert_dir/fullchain.pem" >&2
+      exit 1
+    fi
+    if [ -f "$cert_dir/privkey.pem" ]; then
+      echo "test cert is partially present, refusing to overwrite: $cert_dir/privkey.pem" >&2
+      exit 1
+    fi
+
+    san_list=""
+    for domain in $cert_domains; do
+      if [ -n "$san_list" ]; then
+        san_list="$san_list,"
+      fi
+      san_list="${san_list}DNS:$domain"
+    done
+
+    openssl_conf=$(mktemp)
+    CREATED_TMP_FILES="$openssl_conf $CREATED_TMP_FILES"
+    {
+      printf '%s\n' '[req]'
+      printf '%s\n' 'distinguished_name=req_distinguished_name'
+      printf '%s\n' 'x509_extensions=req_ext'
+      printf '%s\n' 'prompt=no'
+      printf '%s\n' '[req_distinguished_name]'
+      printf 'CN=%s\n' "$cert_name"
+      printf '%s\n' '[req_ext]'
+      printf 'subjectAltName=%s\n' "$san_list"
+    } > "$openssl_conf"
+
+    openssl req -x509 -newkey rsa:2048 -nodes \
+      -keyout "$cert_dir/privkey.pem" \
+      -out "$cert_dir/fullchain.pem" \
+      -days 1 \
+      -config "$openssl_conf" >/dev/null 2>&1
     CREATED_FULLCHAINS="$cert_dir/fullchain.pem $CREATED_FULLCHAINS"
-  fi
-  if [ ! -f "$cert_dir/privkey.pem" ]; then
-    : > "$cert_dir/privkey.pem"
     CREATED_PRIVKEYS="$cert_dir/privkey.pem $CREATED_PRIVKEYS"
+    return 0
   fi
-done
+
+  return 0
+}
+
+create_test_cert "uniamm.com" "uniamm.com"
+create_test_cert "wittgens.cloud" "wittgens.cloud api.wittgens.cloud admin.wittgens.cloud"
 
 APP_ENV=test "$ROOT_DIR/scripts/render-nginx-conf.sh"
 assert_contains "$DEFAULT_CONF" "server_name uniamm.com;"

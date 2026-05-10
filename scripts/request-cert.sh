@@ -16,6 +16,11 @@ for cert_name in $CERT_GROUP_NAMES; do
   cert_domains=$(domains_for_group "$cert_name" || true)
   [ -n "$cert_domains" ] || continue
 
+  if group_cert_ready "$cert_name"; then
+    echo "[nginx-gateway] certificate set already ready: $cert_name ($cert_domains)"
+    continue
+  fi
+
   set --
   for domain in $cert_domains; do
     set -- "$@" -d "$domain"
@@ -35,7 +40,7 @@ for cert_name in $CERT_GROUP_NAMES; do
       --email "$LETSENCRYPT_EMAIL" \
       --agree-tos \
       --no-eff-email \
-      --keep-until-expiring
+      --force-renewal
   else
     docker run --rm \
       -v "$ROOT_DIR/certbot/www:/var/www/certbot" \
@@ -48,7 +53,7 @@ for cert_name in $CERT_GROUP_NAMES; do
       "$@" \
       --register-unsafely-without-email \
       --agree-tos \
-      --keep-until-expiring
+      --force-renewal
   fi
 done
 

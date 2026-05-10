@@ -69,7 +69,23 @@ domains_for_group() {
 group_cert_ready() {
   cert_name=$1
   cert_dir=$(cert_dir_for_group "$cert_name")
-  [ -f "$cert_dir/fullchain.pem" ] && [ -f "$cert_dir/privkey.pem" ]
+  cert_file="$cert_dir/fullchain.pem"
+  [ -f "$cert_file" ] && [ -f "$cert_dir/privkey.pem" ] || return 1
+
+  if command -v openssl >/dev/null 2>&1; then
+    cert_domains=$(domains_for_group "$cert_name" || true)
+    [ -n "$cert_domains" ] || return 1
+    cert_text=$(openssl x509 -in "$cert_file" -noout -text -subject 2>/dev/null || true)
+    [ -n "$cert_text" ] || return 1
+    for domain in $cert_domains; do
+      if ! printf '%s\n' "$cert_text" | grep -Fq "DNS:$domain" \
+        && ! printf '%s\n' "$cert_text" | grep -Fq "CN=$domain"; then
+        return 1
+      fi
+    done
+  fi
+
+  return 0
 }
 
 all_group_certs_ready() {
